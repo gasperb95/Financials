@@ -9,15 +9,21 @@ let state = {
     rules: [],
     netWorthAccounts: [],
     netWorthProperties: [],
+    users: [], // Dynamic users list
     theme: 'dark-theme',
     activeView: 'dashboard',
     selectedMonth: '' // Format: YYYY-MM
 };
 
 // Dashboard User Toggle State
-let dashboardUserFilter = 'all'; // 'all', 'gasper', or 'burris'
+let dashboardUserFilter = 'all'; // 'all' or lowercase user name (e.g. 'gasper')
 
 // Default Configuration Constants
+const DEFAULT_USERS = [
+    { id: 'user-gasper', name: 'Gasper', color: '#60a5fa', keywords: 'gasper,brandon,primary,g' },
+    { id: 'user-burris', name: 'Burris', color: '#c084fc', keywords: 'burris,sarah,secondary,b' }
+];
+
 const DEFAULT_CATEGORIES = [
     { id: 'cat-income', name: 'Income / Refunds', budget: 5000, type: 'income', icon: 'trending-up', color: '#10b981' },
     { id: 'cat-housing', name: 'Housing & Rent', budget: 1500, type: 'expense', icon: 'home', color: '#6366f1' },
@@ -91,6 +97,7 @@ async function loadState() {
             state = await response.json();
             state.netWorthAccounts = state.netWorthAccounts || [];
             state.netWorthProperties = state.netWorthProperties || [];
+            state.users = state.users && state.users.length > 0 ? state.users : [...DEFAULT_USERS];
         } else {
             console.warn('Failed to load state from database server, reverting to defaults.');
             resetStateToDefaults();
@@ -115,6 +122,7 @@ function resetStateToDefaults() {
     state.rules = [...DEFAULT_RULES];
     state.netWorthAccounts = [];
     state.netWorthProperties = [];
+    state.users = [...DEFAULT_USERS];
     state.theme = 'dark-theme';
     saveState();
 }
@@ -137,7 +145,7 @@ function saveState() {
 function setupRouting() {
     const handleHashChange = () => {
         const hash = window.location.hash.replace('#', '') || 'dashboard';
-        const validViews = ['dashboard', 'importer', 'transactions', 'budgets', 'rules', 'networth'];
+        const validViews = ['dashboard', 'importer', 'transactions', 'budgets', 'rules', 'networth', 'users'];
         
         if (validViews.includes(hash)) {
             state.activeView = hash;
@@ -252,6 +260,11 @@ function renderActiveView() {
             titleEl.textContent = 'Net Worth Calculator';
             subtitleEl.textContent = 'Track assets, liabilities, and property equity.';
             renderNetWorthView();
+            break;
+        case 'users':
+            titleEl.textContent = 'Manage Users';
+            subtitleEl.textContent = 'Configure contributors and keyword auto-assignment rules.';
+            renderUsersView();
             break;
     }
     
@@ -457,21 +470,27 @@ function setupEventListeners() {
 
     // Dashboard user toggle event listeners
     const btnScopeAll = document.getElementById('btn-scope-all');
-    const btnScopeGasper = document.getElementById('btn-scope-gasper');
-    if (btnScopeAll && btnScopeGasper) {
+    if (btnScopeAll) {
         btnScopeAll.addEventListener('click', () => {
             dashboardUserFilter = 'all';
             renderDashboardView();
         });
-        btnScopeGasper.addEventListener('click', () => {
-            dashboardUserFilter = 'gasper';
-            renderDashboardView();
-        });
+    }
+
+    // User Setup Listeners
+    const formSaveUser = document.getElementById('form-save-user');
+    if (formSaveUser) {
+        formSaveUser.addEventListener('submit', handleSaveUser);
+    }
+    const cancelUserEditBtn = document.getElementById('btn-cancel-user-edit');
+    if (cancelUserEditBtn) {
+        cancelUserEditBtn.addEventListener('click', resetUserForm);
     }
 
     // Category Setup Color & Icon pickers
     renderIconSelector();
     renderColorSelector();
+    renderUserColorSelector();
     setupMobileMenu();
 }
 
@@ -524,18 +543,23 @@ function updateSidebarWidget() {
 function renderDashboardView() {
     updateSidebarWidget();
     
-    // Update dashboard toggle buttons active states in UI
-    const btnScopeAll = document.getElementById('btn-scope-all');
-    const btnScopeGasper = document.getElementById('btn-scope-gasper');
-    if (btnScopeAll && btnScopeGasper) {
-        btnScopeAll.classList.remove('active');
-        btnScopeGasper.classList.remove('active');
+    // Update dashboard toggle buttons dynamically inside #dashboard-scope-toggle-container
+    const toggleContainer = document.getElementById('dashboard-scope-toggle-container');
+    if (toggleContainer) {
+        let buttonsHtml = `<button class="scope-toggle-btn ${dashboardUserFilter === 'all' ? 'active' : ''}" data-scope="all">All Purchases</button>`;
+        state.users.forEach(u => {
+            const scopeName = u.name.toLowerCase();
+            buttonsHtml += `<button class="scope-toggle-btn ${dashboardUserFilter === scopeName ? 'active' : ''}" data-scope="${scopeName}">${escapeHTML(u.name)}</button>`;
+        });
+        toggleContainer.innerHTML = buttonsHtml;
         
-        if (dashboardUserFilter === 'gasper') {
-            btnScopeGasper.classList.add('active');
-        } else {
-            btnScopeAll.classList.add('active');
-        }
+        // Add event listeners to the generated buttons
+        toggleContainer.querySelectorAll('.scope-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                dashboardUserFilter = e.currentTarget.getAttribute('data-scope');
+                renderDashboardView();
+            });
+        });
     }
 
     const activeMonth = state.selectedMonth;
@@ -545,14 +569,16 @@ function renderDashboardView() {
     if (dashboardUserFilter === 'all') {
         // All Purchases shows any Group transaction
         monthlyTxs = monthlyTxs.filter(t => (t.purchaseType || 'single') === 'group');
-    } else if (dashboardUserFilter === 'gasper') {
-        // Gasper shows any Group transaction with Gasper as the user and any transaction marked as single as Gasper
-        monthlyTxs = monthlyTxs.filter(t => {
-            const isGroup = (t.purchaseType || 'single') === 'group';
-            const isSingle = (t.purchaseType || 'single') === 'single';
-            const isGasper = t.user === 'Gasper';
-            return (isGroup && isGasper) || (isSingle && isGasper);
-        });
+    } else {
+        const matchedUser = state.users.find(u => u.name.toLowerCase() === dashboardUserFilter);
+        if (matchedUser) {
+            monthlyTxs = monthlyTxs.filter(t => {
+                const isGroup = (t.purchaseType || 'single') === 'group';
+                const isSingle = (t.purchaseType || 'single') === 'single';
+                const isThisUser = t.user === matchedUser.name;
+                return (isGroup && isThisUser) || (isSingle && isThisUser);
+            });
+        }
     }
     
     // Compute total income vs. total spending
@@ -919,6 +945,7 @@ function renderTransactionsView() {
 
     // Populate filter dropdowns if needed (only once or update dynamically)
     populateLedgerCategoryFilters();
+    populateLedgerUserFilters();
 
     // Fetch filters from headers if they exist
     const descInput = document.getElementById('header-filter-desc');
@@ -1039,10 +1066,13 @@ function renderTransactionsView() {
 
         // User badge for easy click-to-edit
         let userBadgeHtml = '';
-        if (t.user === 'Gasper') {
-            userBadgeHtml = `<span class="user-badge badge-gasper" data-tx-id="${t.id}">Gasper</span>`;
-        } else if (t.user === 'Burris') {
-            userBadgeHtml = `<span class="user-badge badge-burris" data-tx-id="${t.id}">Burris</span>`;
+        const matchedUser = state.users.find(u => u.name === t.user);
+        if (matchedUser) {
+            const uBgRgba = hexToRgba(matchedUser.color, 0.12);
+            const uBorderRgba = hexToRgba(matchedUser.color, 0.25);
+            userBadgeHtml = `<span class="user-badge" data-tx-id="${t.id}" style="background: ${uBgRgba}; color: ${matchedUser.color}; border: 1px solid ${uBorderRgba};">${escapeHTML(matchedUser.name)}</span>`;
+        } else if (t.user) {
+            userBadgeHtml = `<span class="user-badge badge-unassigned" data-tx-id="${t.id}">${escapeHTML(t.user)}</span>`;
         } else {
             userBadgeHtml = `<span class="user-badge badge-unassigned" data-tx-id="${t.id}">Unassigned</span>`;
         }
@@ -1149,8 +1179,7 @@ function renderTransactionsView() {
 
             const options = [
                 { value: '', label: 'Unassigned' },
-                { value: 'Gasper', label: 'Gasper' },
-                { value: 'Burris', label: 'Burris' }
+                ...state.users.map(u => ({ value: u.name, label: u.name }))
             ];
 
             options.forEach(opt => {
@@ -1346,6 +1375,28 @@ function populateLedgerCategoryFilters() {
     }
 }
 
+function populateLedgerUserFilters() {
+    const filterSelect = document.getElementById('header-filter-user');
+    if (!filterSelect) return;
+    
+    const savedVal = filterSelect.value || 'all';
+    filterSelect.innerHTML = '<option value="all">All Users</option>';
+    
+    state.users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.name;
+        opt.textContent = escapeHTML(u.name);
+        if (u.name === savedVal) opt.selected = true;
+        filterSelect.appendChild(opt);
+    });
+
+    const optUnassigned = document.createElement('option');
+    optUnassigned.value = 'unassigned';
+    optUnassigned.textContent = 'Unassigned';
+    if (savedVal === 'unassigned') optUnassigned.selected = true;
+    filterSelect.appendChild(optUnassigned);
+}
+
 // Export ledger transactions to CSV file download
 function exportLedgerCSV() {
     const activeMonth = state.selectedMonth;
@@ -1405,6 +1456,18 @@ function openTransactionModal(editId = '') {
         opt.textContent = `${c.name} (${c.type})`;
         catSelect.appendChild(opt);
     });
+
+    // Clear and build users selector
+    const userSelect = document.getElementById('tx-user');
+    if (userSelect) {
+        userSelect.innerHTML = '<option value="">— Unassigned —</option>';
+        state.users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.name;
+            opt.textContent = escapeHTML(u.name);
+            userSelect.appendChild(opt);
+        });
+    }
 
     if (editId) {
         titleEl.textContent = 'Edit Transaction';
@@ -2277,16 +2340,30 @@ function processCsvMapping() {
     renderParsedPreview();
 }
 
-// Normalize uploaded values to Gasper or Burris based on keywords
+// Normalize uploaded values to users based on their keyword rules
 function normalizeImportedUser(val) {
     if (!val) return '';
     const clean = val.replace(/["']/g, '').trim().toLowerCase();
-    if (clean.includes('gasper') || clean.includes('brandon') || clean.includes('primary') || clean.startsWith('g')) {
-        return 'Gasper';
+    
+    // Scan all users in state
+    for (const u of state.users) {
+        if (u.keywords) {
+            const keywordsList = u.keywords.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+            for (const kw of keywordsList) {
+                if (clean.includes(kw)) {
+                    return u.name;
+                }
+            }
+        }
     }
-    if (clean.includes('burris') || clean.includes('sarah') || clean.includes('secondary') || clean.startsWith('b')) {
-        return 'Burris';
+    
+    // Secondary check: prefix check
+    for (const u of state.users) {
+        if (clean.startsWith(u.name.toLowerCase().substring(0, 1))) {
+            return u.name;
+        }
     }
+    
     return '';
 }
 
@@ -2433,8 +2510,9 @@ function renderParsedPreview() {
         // User dropdown for individual corrections
         let parsedUserSelectHtml = `<select class="select-parsed-user" data-index="${idx}">`;
         parsedUserSelectHtml += `<option value="" ${!t.user ? 'selected' : ''}>—</option>`;
-        parsedUserSelectHtml += `<option value="Gasper" ${t.user === 'Gasper' ? 'selected' : ''}>Gasper</option>`;
-        parsedUserSelectHtml += `<option value="Burris" ${t.user === 'Burris' ? 'selected' : ''}>Burris</option>`;
+        state.users.forEach(u => {
+            parsedUserSelectHtml += `<option value="${u.name}" ${t.user === u.name ? 'selected' : ''}>${escapeHTML(u.name)}</option>`;
+        });
         parsedUserSelectHtml += `</select>`;
 
         // Scope dropdown for individual corrections
@@ -3421,5 +3499,216 @@ function renderNetWorthCharts(totalAssets, totalLiabilities, accounts, propertie
                 cutout: '70%'
             }
         });
+    }
+}
+
+// ==========================================================================
+// VIEW RENDERING: USERS SETUP
+// ==========================================================================
+
+function renderUserColorSelector() {
+    const container = document.getElementById('user-color-picker');
+    if (!container) return;
+    container.innerHTML = '';
+
+    AVAILABLE_COLORS.forEach(hexColor => {
+        const item = document.createElement('div');
+        item.className = 'color-option';
+        if (hexColor === '#3b82f6') {
+            item.classList.add('selected');
+        }
+        item.style.backgroundColor = hexColor;
+        item.setAttribute('data-color', hexColor);
+        
+        item.addEventListener('click', () => {
+            container.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            document.getElementById('user-color').value = hexColor;
+        });
+        container.appendChild(item);
+    });
+}
+
+function renderUsersView() {
+    const tbody = document.getElementById('users-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    state.users.forEach(u => {
+        const tr = document.createElement('tr');
+        
+        // Convert hex to rgba for dynamic glass badge look
+        const hex = u.color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        const bgRgba = `rgba(${r}, ${g}, ${b}, 0.12)`;
+        const borderRgba = `rgba(${r}, ${g}, ${b}, 0.25)`;
+        
+        const userBadge = `<span class="user-badge" style="background: ${bgRgba}; color: ${u.color}; border: 1px solid ${borderRgba}; font-weight: 600;">${escapeHTML(u.name)}</span>`;
+        const keywordsText = u.keywords ? escapeHTML(u.keywords) : '<span class="text-muted text-xs">None</span>';
+
+        tr.innerHTML = `
+            <td style="font-weight: 500;">${userBadge}</td>
+            <td><code>${keywordsText}</code></td>
+            <td class="text-right">
+                <button class="btn-action-row edit-user-btn" data-user-id="${u.id}" title="Edit User">
+                    <i data-lucide="edit-3"></i>
+                </button>
+                <button class="btn-action-row delete delete-user-btn" data-user-id="${u.id}" title="Delete User">
+                    <i data-lucide="trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Wire up events
+    tbody.querySelectorAll('.edit-user-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const userId = e.currentTarget.getAttribute('data-user-id');
+            loadUserIntoForm(userId);
+        });
+    });
+
+    tbody.querySelectorAll('.delete-user-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const userId = e.currentTarget.getAttribute('data-user-id');
+            handleDeleteUser(userId);
+        });
+    });
+
+    resetUserForm();
+    lucide.createIcons();
+}
+
+function handleSaveUser(e) {
+    e.preventDefault();
+
+    const editId = document.getElementById('user-edit-id').value;
+    const name = document.getElementById('user-name').value.trim();
+    const color = document.getElementById('user-color').value;
+    const keywords = document.getElementById('user-keywords').value.trim();
+
+    if (!name) {
+        alert('Please specify a username.');
+        return;
+    }
+
+    // Check duplicate name (except if we are editing and name is unchanged)
+    const duplicate = state.users.some(u => u.name.toLowerCase() === name.toLowerCase() && u.id !== editId);
+    if (duplicate) {
+        alert('A user with this name already exists.');
+        return;
+    }
+
+    if (editId) {
+        // Editing existing user
+        const user = state.users.find(u => u.id === editId);
+        if (user) {
+            // Update transactions user tags if name changed
+            if (user.name !== name) {
+                state.transactions.forEach(t => {
+                    if (t.user === user.name) {
+                        t.user = name;
+                    }
+                });
+            }
+            user.name = name;
+            user.color = color;
+            user.keywords = keywords;
+        }
+    } else {
+        // Creating new user
+        const newUser = {
+            id: 'user-' + Date.now(),
+            name,
+            color,
+            keywords
+        };
+        state.users.push(newUser);
+    }
+
+    saveState();
+    renderUsersView();
+}
+
+function loadUserIntoForm(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return;
+
+    document.getElementById('user-edit-id').value = user.id;
+    document.getElementById('user-name').value = user.name;
+    document.getElementById('user-color').value = user.color;
+    document.getElementById('user-keywords').value = user.keywords || '';
+
+    // Update color picker selection
+    const picker = document.getElementById('user-color-picker');
+    if (picker) {
+        picker.querySelectorAll('.color-option').forEach(el => {
+            if (el.getAttribute('data-color') === user.color) {
+                el.classList.add('selected');
+            } else {
+                el.classList.remove('selected');
+            }
+        });
+    }
+
+    document.getElementById('user-editor-title').textContent = 'Edit User: ' + user.name;
+    document.getElementById('btn-save-user-text').textContent = 'Save Changes';
+    document.getElementById('btn-cancel-user-edit').classList.remove('hidden');
+}
+
+function resetUserForm() {
+    document.getElementById('user-edit-id').value = '';
+    document.getElementById('user-name').value = '';
+    document.getElementById('user-color').value = '#3b82f6';
+    document.getElementById('user-keywords').value = '';
+
+    // Reset color picker selection
+    const picker = document.getElementById('user-color-picker');
+    if (picker) {
+        picker.querySelectorAll('.color-option').forEach(el => {
+            if (el.getAttribute('data-color') === '#3b82f6') {
+                el.classList.add('selected');
+            } else {
+                el.classList.remove('selected');
+            }
+        });
+    }
+
+    document.getElementById('user-editor-title').textContent = 'Create / Edit User';
+    document.getElementById('btn-save-user-text').textContent = 'Add User';
+    document.getElementById('btn-cancel-user-edit').classList.add('hidden');
+}
+
+function handleDeleteUser(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return;
+
+    // Restrict deletion if it's the last user
+    if (state.users.length <= 1) {
+        alert('You must have at least one user configured.');
+        return;
+    }
+
+    if (confirm(`Are you sure you want to delete user "${user.name}"? All transactions assigned to this user will be set to Unassigned.`)) {
+        // Clear transaction assignments
+        state.transactions.forEach(t => {
+            if (t.user === user.name) {
+                t.user = '';
+            }
+        });
+
+        // Remove from list
+        state.users = state.users.filter(u => u.id !== userId);
+        
+        // Reset dashboard filter if needed
+        if (dashboardUserFilter === user.name.toLowerCase()) {
+            dashboardUserFilter = 'all';
+        }
+
+        saveState();
+        renderUsersView();
     }
 }

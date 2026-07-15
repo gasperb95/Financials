@@ -130,11 +130,13 @@ function initDatabase() {
                         db.run("DROP TABLE IF EXISTS net_worth_accounts");
                         db.run("DROP TABLE IF EXISTS net_worth_properties");
                         createNetWorthTables();
+                        createUsersTable();
                     });
                     return;
                 }
             }
             createNetWorthTables();
+            createUsersTable();
         });
 
         function createNetWorthTables() {
@@ -155,6 +157,26 @@ function initDatabase() {
                 month TEXT,
                 PRIMARY KEY (id, month)
             )`);
+        }
+
+        function createUsersTable() {
+            db.run(`CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                color TEXT,
+                keywords TEXT
+            )`, () => {
+                // Seed default users if empty
+                db.get(`SELECT COUNT(*) as count FROM users`, (err, row) => {
+                    if (!err && row.count === 0) {
+                        console.log('Seeding default users...');
+                        const stmt = db.prepare(`INSERT INTO users (id, name, color, keywords) VALUES (?, ?, ?, ?)`);
+                        stmt.run('user-gasper', 'Gasper', '#60a5fa', 'gasper,brandon,primary,g');
+                        stmt.run('user-burris', 'Burris', '#c084fc', 'burris,sarah,secondary,b');
+                        stmt.finalize();
+                    }
+                });
+            });
         }
     });
 }
@@ -180,6 +202,7 @@ app.get('/api/state', async (req, res) => {
         const settingsRows = await dbAll(`SELECT * FROM settings`);
         const netWorthAccounts = await dbAll(`SELECT * FROM net_worth_accounts`);
         const netWorthProperties = await dbAll(`SELECT * FROM net_worth_properties`);
+        const users = await dbAll(`SELECT * FROM users`);
 
         // Convert settings table to key-value mapping
         const settings = {};
@@ -201,6 +224,7 @@ app.get('/api/state', async (req, res) => {
             rules: rules || [],
             netWorthAccounts: netWorthAccounts || [],
             netWorthProperties: netWorthProperties || [],
+            users: users || [],
             theme: settings.theme || 'dark-theme',
             activeView: settings.activeView || 'dashboard',
             selectedMonth: selectedMonth
@@ -213,7 +237,7 @@ app.get('/api/state', async (req, res) => {
 
 // POST /api/state - Atomically update/sync entire app state to SQLite
 app.post('/api/state', (req, res) => {
-    const { transactions, categories, rules, netWorthAccounts = [], netWorthProperties = [], theme, activeView, selectedMonth } = req.body;
+    const { transactions, categories, rules, netWorthAccounts = [], netWorthProperties = [], users = [], theme, activeView, selectedMonth } = req.body;
 
     if (!categories || !transactions || !rules) {
         return res.status(400).json({ error: 'Invalid state object provided.' });
@@ -229,6 +253,7 @@ app.post('/api/state', (req, res) => {
         db.run('DELETE FROM settings');
         db.run('DELETE FROM net_worth_accounts');
         db.run('DELETE FROM net_worth_properties');
+        db.run('DELETE FROM users');
 
         // Insert Settings
         const stmtSettings = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
@@ -271,6 +296,13 @@ app.post('/api/state', (req, res) => {
             stmtProp.run(p.id, p.name, p.value, p.mortgage, p.month || '');
         });
         stmtProp.finalize();
+
+        // Insert Users
+        const stmtUser = db.prepare('INSERT INTO users (id, name, color, keywords) VALUES (?, ?, ?, ?)');
+        users.forEach(u => {
+            stmtUser.run(u.id, u.name, u.color, u.keywords || '');
+        });
+        stmtUser.finalize();
 
         db.run('COMMIT', (err) => {
             if (err) {

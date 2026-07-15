@@ -63,6 +63,10 @@
                     <i data-lucide="sliders"></i>
                     <span>Auto-Rules</span>
                 </a>
+                <a href="#users" class="menu-item" data-view="users">
+                    <i data-lucide="users"></i>
+                    <span>Manage Users</span>
+                </a>
                 <a href="#networth" class="menu-item" data-view="networth">
                     <i data-lucide="landmark"></i>
                     <span>Net Worth</span>
@@ -118,9 +122,8 @@
                         <i data-lucide="filter" class="text-muted" style="width: 16px; height: 16px;"></i>
                         <span class="text-secondary text-sm">Dashboard Filter User</span>
                     </div>
-                    <div class="dashboard-scope-toggle-group">
+                    <div class="dashboard-scope-toggle-group" id="dashboard-scope-toggle-container">
                         <button class="scope-toggle-btn active" id="btn-scope-all" data-scope="all">All Purchases</button>
-                        <button class="scope-toggle-btn" id="btn-scope-gasper" data-scope="gasper">Gasper</button>
                     </div>
                 </div>
 
@@ -400,8 +403,6 @@
                                     <td>
                                         <select id="header-filter-user" class="header-filter-select">
                                             <option value="all">All Users</option>
-                                            <option value="Gasper">Gasper</option>
-                                            <option value="Burris">Burris</option>
                                             <option value="unassigned">Unassigned</option>
                                         </select>
                                     </td>
@@ -605,6 +606,72 @@
                                 <button class="btn btn-info w-full justify-center" id="btn-inject-mock-data">
                                     <i data-lucide="beaker"></i> Load Sample Demo Data
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users View -->
+            <div id="view-users" class="view-panel">
+                <div class="settings-grid">
+                    <!-- Left Card: Create / Edit User -->
+                    <div class="glass-panel">
+                        <div class="card-header border-bottom">
+                            <h3 id="user-editor-title">Create / Edit User</h3>
+                            <p class="text-muted text-sm">Add or edit budget contributors, pick an accent color, and set up keyword rules to auto-assign transaction cardholders during statement import.</p>
+                        </div>
+                        
+                        <div class="user-editor mt-4">
+                            <form id="form-save-user">
+                                <input type="hidden" id="user-edit-id">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="user-name">User Name</label>
+                                    <input type="text" id="user-name" class="form-control" placeholder="e.g. Gasper, Burris, Sarah" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Accent Color</label>
+                                    <div class="color-picker-grid" id="user-color-picker">
+                                        <!-- Populated via JS -->
+                                    </div>
+                                    <input type="hidden" id="user-color" value="#3b82f6">
+                                </div>
+                                <div class="form-group mb-4">
+                                    <label class="form-label" for="user-keywords">Keyword Rules (Comma-separated)</label>
+                                    <input type="text" id="user-keywords" class="form-control" placeholder="e.g. brandon, gasper, primary">
+                                    <small class="text-muted text-xs mt-1 block">When bank statements are parsed, transactions containing any of these keywords will automatically assign to this cardholder.</small>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button type="submit" class="btn btn-primary" id="btn-save-user-submit">
+                                        <i data-lucide="plus"></i> <span id="btn-save-user-text">Add User</span>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary hidden" id="btn-cancel-user-edit">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Right Card: Manage Active Users -->
+                    <div class="glass-panel">
+                        <div class="card-header border-bottom">
+                            <h3>Manage Active Users</h3>
+                            <p class="text-muted text-sm">Review, edit, or delete existing budget contributors.</p>
+                        </div>
+                        
+                        <div class="users-list-container mt-4">
+                            <div class="table-responsive">
+                                <table class="table text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Keywords</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-tbody">
+                                        <!-- Dynamically generated rows -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -845,8 +912,6 @@
                     <label class="form-label" for="tx-user">User / Cardholder</label>
                     <select id="tx-user" class="form-select">
                         <option value="">— Unassigned —</option>
-                        <option value="Gasper">Gasper</option>
-                        <option value="Burris">Burris</option>
                     </select>
                 </div>
                 
