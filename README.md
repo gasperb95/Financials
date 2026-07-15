@@ -65,6 +65,11 @@ Make sure you have [Node.js](https://nodejs.org/) installed (v16+ recommended).
    http://localhost:3000
    ```
 
+### Database Setup & Privacy
+
+- **Zero-Setup Database**: You do not need to run any manual database install scripts. The first time you launch the application (`npm start`), the SQLite backend automatically creates a fresh, local `financials.db` file and seeds it with all necessary tables and default data (categories, rules, and users).
+- **Local Data Privacy**: The `financials.db` database is listed in the `.gitignore` file, ensuring that your local financial transactions, net worth logs, and personal budgets are never committed to your Git repository.
+
 ---
 
 ## How It Works
