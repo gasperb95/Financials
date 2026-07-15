@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B² Finance — Smart Statement Parser & Budget Planner</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Sidebar Backdrop Overlay on Mobile -->
+        <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+
+        <!-- Mobile Header Bar -->
+        <header class="mobile-header">
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle-btn" title="Open Menu">
+                <i data-lucide="menu"></i>
+            </button>
+            <span class="mobile-logo-text">B<sup>2</sup> Finance</span>
+        </header>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i data-lucide="wallet" class="accent-icon"></i>
+                </div>
+                <h2>B<sup>2</sup> Finance</h2>
+                <button class="mobile-menu-close-btn" id="mobile-menu-close-btn" title="Close Menu">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <a href="#dashboard" class="menu-item active" data-view="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#importer" class="menu-item" data-view="importer">
+                    <i data-lucide="file-up"></i>
+                    <span>Import Statement</span>
+                </a>
+                <a href="#transactions" class="menu-item" data-view="transactions">
+                    <i data-lucide="receipt"></i>
+                    <span>Transactions</span>
+                </a>
+                <a href="#budgets" class="menu-item" data-view="budgets">
+                    <i data-lucide="pie-chart"></i>
+                    <span>Category Budgets</span>
+                </a>
+                <a href="#rules" class="menu-item" data-view="rules">
+                    <i data-lucide="sliders"></i>
+                    <span>Auto-Rules</span>
+                </a>
+                <a href="#networth" class="menu-item" data-view="networth">
+                    <i data-lucide="landmark"></i>
+                    <span>Net Worth</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="budget-status-widget">
+                    <div class="widget-header">
+                        <span>Total Budget Status</span>
+                        <span id="sidebar-budget-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="sidebar-budget-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="widget-meta" id="sidebar-budget-text">Spent $0 of $0</div>
+                </div>
+                <div class="theme-toggle" id="theme-toggle-btn">
+                    <i data-lucide="sun" class="sun-icon"></i>
+                    <i data-lucide="moon" class="moon-icon"></i>
+                    <span>Toggle Theme</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="page-title-section">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p id="page-subtitle" class="text-muted">Welcome back! Here's your financial overview.</p>
+                </div>
+                <div class="navbar-actions">
+                    <div class="month-selector-container">
+                        <i data-lucide="calendar" class="text-muted"></i>
+                        <select id="global-month-select" class="form-select">
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="btn-quick-transaction">
+                        <i data-lucide="plus"></i>
+                        <span>Add Transaction</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="view-panel active">
+                <!-- Dashboard Filters Toolbar -->
+                <div class="dashboard-toolbar glass-panel">
+                    <div class="toolbar-left" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i data-lucide="filter" class="text-muted" style="width: 16px; height: 16px;"></i>
+                        <span class="text-secondary text-sm">Dashboard Filter User</span>
+                    </div>
+                    <div class="dashboard-scope-toggle-group">
+                        <button class="scope-toggle-btn active" id="btn-scope-all" data-scope="all">All Purchases</button>
+                        <button class="scope-toggle-btn" id="btn-scope-gasper" data-scope="gasper">Gasper</button>
+                    </div>
+                </div>
+
+                <!-- Overview Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper income">
+                            <i data-lucide="arrow-down-left"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Income</span>
+                            <h3 class="stat-value text-success" id="stat-total-income">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper expense">
+                            <i data-lucide="arrow-up-right"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Spending</span>
+                            <h3 class="stat-value text-danger" id="stat-total-spending">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper budget">
+                            <i data-lucide="piggy-bank"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Budget</span>
+                            <h3 class="stat-value text-primary" id="stat-total-budget">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper savings">
+                            <i data-lucide="percent"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Savings Rate</span>
+                            <h3 class="stat-value text-info" id="stat-savings-rate">0%</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <div class="chart-card glass-panel card-lg">
+                        <div class="card-header">
+                            <h3>Budget vs. Actual Spending</h3>
+                            <span class="text-muted text-sm">Monthly comparison by category</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="budgetActualChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card glass-panel card-sm">
+                        <div class="card-header">
+                            <h3>Spending Breakdown</h3>
+                            <span class="text-muted text-sm">Category distribution</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="spendingBreakdownChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Dashboard Row -->
+                <div class="dashboard-bottom-grid">
+                    <!-- Recent Transactions -->
+                    <div class="glass-panel col-transactions">
+                        <div class="card-header border-bottom">
+                            <h3>Recent Transactions</h3>
+                            <a href="#transactions" class="text-link text-sm" onclick="navigateToView('transactions')">View All</a>
+                        </div>
+                        <div class="recent-list-container" id="recent-transactions-list">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Category Status Cards -->
+                    <div class="glass-panel col-budgets">
+                        <div class="card-header border-bottom">
+                            <h3>Budget Thresholds</h3>
+                            <a href="#budgets" class="text-link text-sm" onclick="navigateToView('budgets')">Manage Budgets</a>
+                        </div>
+                        <div class="budget-status-list" id="dashboard-budget-status-list">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Importer View -->
+            <div id="view-importer" class="view-panel">
+                <div class="grid-importer">
+                    <!-- File Drag Drop & Parser Selector -->
+                    <div class="glass-panel importer-upload-card">
+                        <div class="card-header">
+                            <h3>Upload Financial Statement</h3>
+                            <p class="text-muted text-sm">Support for CSV credit card statements or PDF statement text parsing.</p>
+                        </div>
+                        
+                        <div class="importer-options">
+                            <label class="importer-type-option">
+                                <input type="radio" name="importType" value="csv" checked>
+                                <div class="option-content">
+                                    <i data-lucide="file-spreadsheet"></i>
+                                    <span>CSV Statement</span>
+                                </div>
+                            </label>
+                            <label class="importer-type-option">
+                                <input type="radio" name="importType" value="pdf">
+                                <div class="option-content">
+                                    <i data-lucide="file-text"></i>
+                                    <span>PDF Statement</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="dropzone" id="file-dropzone">
+                            <input type="file" id="file-input" class="hidden-file-input" accept=".csv,.pdf">
+                            <div class="dropzone-inner">
+                                <div class="dropzone-icon">
+                                    <i data-lucide="cloud-upload" id="dropzone-icon-glyph"></i>
+                                </div>
+                                <h4>Drag & drop your statement here</h4>
+                                <p class="text-muted text-sm">or click to browse from your computer</p>
+                                <span class="badge" id="file-type-badge">CSV or PDF (Max 10MB)</span>
+                            </div>
+                        </div>
+
+                        <!-- CSV Column Mapping Helper (hidden initially) -->
+                        <div class="csv-mapping-card hidden" id="csv-mapping-card">
+                            <div class="card-header card-header-inline">
+                                <h4>Map CSV Columns</h4>
+                                <span class="badge badge-warning">Action Required</span>
+                            </div>
+                            <p class="text-muted text-sm mb-3">We found headers in your CSV. Please select which columns represent the Date, Description, and Amount.</p>
+                            
+                            <div class="mapping-selectors-grid">
+                                <div class="form-group">
+                                    <label class="form-label" for="map-date">Date Column</label>
+                                    <select id="map-date" class="form-select select-mapping"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="map-desc">Description Column</label>
+                                    <select id="map-desc" class="form-select select-mapping"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="map-user">User Column (Optional)</label>
+                                    <select id="map-user" class="form-select select-mapping"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="map-amount">Amount Column</label>
+                                    <select id="map-amount" class="form-select select-mapping"></select>
+                                </div>
+                            </div>
+                            
+                            <div class="mapping-preview-table-container">
+                                <h5>CSV Content Preview</h5>
+                                <div class="table-responsive">
+                                    <table class="table-preview" id="csv-raw-preview-table">
+                                        <thead><tr id="preview-thead-tr"></tr></thead>
+                                        <tbody id="preview-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="action-row justify-end mt-4">
+                                <button class="btn btn-secondary" id="btn-cancel-mapping">Cancel</button>
+                                <button class="btn btn-primary" id="btn-apply-mapping">
+                                    <i data-lucide="check"></i> Parse & Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parsed Transactions Review Section -->
+                    <div class="glass-panel importer-preview-card">
+                        <div class="card-header border-bottom">
+                            <div class="header-split">
+                                <div>
+                                    <h3>Parsed Transactions Preview</h3>
+                                    <p class="text-muted text-sm" id="parsed-count-info">No files parsed yet. Upload a statement to get started.</p>
+                                </div>
+                                <div class="preview-actions hidden" id="preview-actions-panel">
+                                    <button class="btn btn-danger btn-sm" id="btn-clear-preview">
+                                        <i data-lucide="trash-2"></i> Clear
+                                    </button>
+                                    <button class="btn btn-success" id="btn-import-all">
+                                        <i data-lucide="check-square"></i> Import <span id="import-count-badge">(0)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="parsed-list-wrapper">
+                            <!-- Empty State -->
+                            <div class="empty-state" id="importer-empty-state">
+                                <i data-lucide="receipt" class="empty-icon text-muted"></i>
+                                <h3>Ready for import</h3>
+                                <p class="text-muted">Parsed transactions will show up here for validation before importing to your ledger.</p>
+                            </div>
+
+                            <!-- PDF Parser Processing Console (hidden initially) -->
+                            <div id="pdf-processing-console" class="pdf-console hidden">
+                                <div class="console-header">
+                                    <i data-lucide="terminal"></i> PDF Extraction Console
+                                </div>
+                                <div class="console-body" id="pdf-console-log">
+                                    Initializing PDF parsing...
+                                </div>
+                            </div>
+
+                            <!-- Preview Table (hidden initially) -->
+                            <div class="table-responsive hidden" id="parsed-table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Description</th>
+                                            <th>User</th>
+                                            <th>Scope</th>
+                                            <th>Amount</th>
+                                            <th>Assigned Category</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="parsed-transactions-tbody">
+                                        <!-- Rows added by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions View -->
+            <div id="view-transactions" class="view-panel">
+                <div class="glass-panel">
+                    <!-- Filters and Search Toolbar -->
+                    <div class="toolbar">
+                        <div class="toolbar-left" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="info" class="text-muted" style="width: 16px; height: 16px;"></i>
+                            <span class="text-muted text-sm">Use the table header controls below to filter and sort transactions.</span>
+                        </div>
+                        <div class="filters-container">
+                            <button class="btn btn-secondary" id="btn-export-csv">
+                                <i data-lucide="download"></i>
+                                <span>Export CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ledger Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr class="header-titles">
+                                    <th class="sortable-header" id="th-date" style="cursor: pointer; user-select: none;">
+                                        Date <i id="sort-icon-date" data-lucide="chevrons-up-down" class="sort-icon-inline" style="width: 14px; height: 14px; margin-left: 4px; vertical-align: middle;"></i>
+                                    </th>
+                                    <th>Description</th>
+                                    <th>User</th>
+                                    <th>Category</th>
+                                    <th>Scope</th>
+                                    <th class="text-right sortable-header" id="th-amount" style="cursor: pointer; user-select: none;">
+                                        Amount <i id="sort-icon-amount" data-lucide="chevrons-up-down" class="sort-icon-inline" style="width: 14px; height: 14px; margin-left: 4px; vertical-align: middle;"></i>
+                                    </th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                                <tr class="header-filters">
+                                    <td></td>
+                                    <td>
+                                        <input type="text" id="header-filter-desc" class="header-filter-input" placeholder="Search Description...">
+                                    </td>
+                                    <td>
+                                        <select id="header-filter-user" class="header-filter-select">
+                                            <option value="all">All Users</option>
+                                            <option value="Gasper">Gasper</option>
+                                            <option value="Burris">Burris</option>
+                                            <option value="unassigned">Unassigned</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select id="header-filter-category" class="header-filter-select">
+                                            <option value="all">All Categories</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select id="header-filter-scope" class="header-filter-select">
+                                            <option value="all">All Scopes</option>
+                                            <option value="single">Single</option>
+                                            <option value="group">Group</option>
+                                        </select>
+                                    </td>
+                                    <td class="text-right">
+                                        <select id="header-filter-type" class="header-filter-select text-right-select">
+                                            <option value="all">All Types</option>
+                                            <option value="expense">Expenses</option>
+                                            <option value="income">Income</option>
+                                        </select>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </thead>
+                            <tbody id="ledger-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="empty-state hidden" id="ledger-empty-state">
+                        <i data-lucide="credit-card" class="empty-icon text-muted"></i>
+                        <h3>No transactions found</h3>
+                        <p class="text-muted">Try adjusting your filters or upload a statement to add transaction records.</p>
+                    </div>
+
+                    <!-- Pagination / Footer info -->
+                    <div class="table-footer">
+                        <span class="text-muted text-sm" id="ledger-item-count">Showing 0 transactions</span>
+                        <div class="pagination-buttons">
+                            <!-- Optional pagination can be added -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budgets View -->
+            <div id="view-budgets" class="view-panel">
+                <div class="budget-view-layout">
+                    <!-- Left Column: Add/Edit Category Targets -->
+                    <div class="glass-panel side-panel">
+                        <div class="card-header border-bottom">
+                            <h3>Manage Categories</h3>
+                            <p class="text-muted text-sm">Create categories and set their monthly target budgets.</p>
+                        </div>
+                        
+                        <form id="form-manage-category" class="mt-4">
+                            <input type="hidden" id="category-edit-id" value="">
+                            <div class="form-group">
+                                <label class="form-label" for="category-name">Category Name</label>
+                                <input type="text" id="category-name" class="form-control" placeholder="e.g. Shopping, Transport" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="category-budget">Monthly Budget Limit ($)</label>
+                                <input type="number" id="category-budget" class="form-control" placeholder="e.g. 500" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="category-type">Category Type</label>
+                                <select id="category-type" class="form-select">
+                                    <option value="expense">Expense</option>
+                                    <option value="income">Income</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Category Icon</label>
+                                <div class="icon-selector-grid" id="icon-selector-container">
+                                    <!-- Populated via JS with selectable lucide icon name options -->
+                                </div>
+                                <input type="hidden" id="category-icon" value="tag">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="category-color">Category Color Accent</label>
+                                <div class="color-picker-grid" id="color-picker-container">
+                                    <!-- Populated via JS with color circles -->
+                                </div>
+                                <input type="hidden" id="category-color" value="#6366f1">
+                            </div>
+                            
+                            <div class="action-buttons-group pt-2">
+                                <button type="button" class="btn btn-secondary hidden" id="btn-cancel-category-edit">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="btn-save-category">
+                                    <i data-lucide="plus-circle" id="category-submit-icon"></i> <span id="category-submit-text">Add Category</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Right Column: Visual Budget Cards Grid -->
+                    <div class="budget-dashboard-cards-section">
+                        <div class="budget-cards-grid" id="budgets-cards-container">
+                            <!-- Populated dynamically with category progress bars and alerts -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules & Settings View -->
+            <div id="view-rules" class="view-panel">
+                <div class="settings-grid">
+                    <!-- Left Card: Auto Categorization Rules -->
+                    <div class="glass-panel">
+                        <div class="card-header border-bottom">
+                            <h3>Auto-Categorization Rules</h3>
+                            <p class="text-muted text-sm">Define rules to automatically map merchant descriptions to spending categories upon import.</p>
+                        </div>
+                        
+                        <div class="rules-editor mt-4">
+                            <form id="form-add-rule" class="rule-inline-form">
+                                <div class="form-group flex-1">
+                                    <label class="form-label">If payee description contains:</label>
+                                    <input type="text" id="rule-keyword" class="form-control" placeholder="e.g. Starbucks, Uber, Netflix" required>
+                                </div>
+                                <div class="form-group flex-1">
+                                    <label class="form-label">Automatically assign category:</label>
+                                    <select id="rule-category" class="form-select" required>
+                                        <!-- Categories added via JS -->
+                                    </select>
+                                </div>
+                                <div class="form-group align-self-end">
+                                    <button type="submit" class="btn btn-primary btn-icon-only" title="Add Rule">
+                                        <i data-lucide="plus"></i>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div class="rules-list-container mt-4">
+                                <h4 class="mb-2">Active Mapping Rules</h4>
+                                <div class="table-responsive">
+                                    <table class="table text-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Keyword</th>
+                                                <th>Assigned Category</th>
+                                                <th class="text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rules-tbody">
+                                            <!-- Dynamically generated rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="empty-state py-4 hidden" id="rules-empty-state">
+                                    <i data-lucide="sliders" class="empty-icon text-muted" style="font-size: 24px;"></i>
+                                    <p class="text-muted text-sm">No auto-categorization rules created yet.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Card: System & Data Backup -->
+                    <div class="glass-panel">
+                        <div class="card-header border-bottom">
+                            <h3>App Data & System Settings</h3>
+                            <p class="text-muted text-sm">Manage data storage, export backups, or clear data to start fresh.</p>
+                        </div>
+                        
+                        <div class="settings-content mt-4">
+                            <!-- Backup & Restore Actions -->
+                            <div class="settings-section-card">
+                                <h4>Backup and Restore</h4>
+                                <p class="text-muted text-xs mb-3">Download a backup of your budgets, rules, and transaction history as a JSON file, or restore from a previous backup file.</p>
+                                <div class="button-row-stacked">
+                                    <button class="btn btn-secondary w-full justify-center" id="btn-export-backup">
+                                        <i data-lucide="download-cloud"></i> Export All App Data (JSON)
+                                    </button>
+                                    
+                                    <div class="restore-wrapper mt-2">
+                                        <input type="file" id="import-backup-file" accept=".json" class="hidden-file-input">
+                                        <button class="btn btn-secondary w-full justify-center" id="btn-trigger-backup-import">
+                                            <i data-lucide="upload-cloud"></i> Restore Backup (JSON)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Clear Database -->
+                            <div class="settings-section-card border-danger-soft mt-4">
+                                <h4 class="text-danger">Danger Zone</h4>
+                                <p class="text-muted text-xs mb-3">Clearing data will remove all transactions, budgets, rules, and custom categories stored in this browser. This action is permanent and cannot be undone.</p>
+                                <button class="btn btn-danger w-full justify-center" id="btn-clear-all-data">
+                                    <i data-lucide="trash-2"></i> Clear All Stored Data
+                                </button>
+                            </div>
+
+                            <!-- Mock Data Injector (For Testing) -->
+                            <div class="settings-section-card mt-4 border-info-soft">
+                                <h4 class="text-info">Demo & Sandbox</h4>
+                                <p class="text-muted text-xs mb-3">Load mock financial transactions and default budget allocations to explore the dashboard visualisations and analytics immediately.</p>
+                                <button class="btn btn-info w-full justify-center" id="btn-inject-mock-data">
+                                    <i data-lucide="beaker"></i> Load Sample Demo Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Net Worth View -->
+            <div id="view-networth" class="view-panel">
+                <!-- Overview Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper savings">
+                            <i data-lucide="landmark"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Net Worth</span>
+                            <h3 class="stat-value text-primary" id="networth-total">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper income">
+                            <i data-lucide="trending-up"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Assets</span>
+                            <h3 class="stat-value text-success" id="networth-assets">$0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon-wrapper expense">
+                            <i data-lucide="trending-down"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Liabilities</span>
+                            <h3 class="stat-value text-danger" id="networth-liabilities">$0.00</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid mb-4" style="margin-bottom: 1.5rem;">
+                    <!-- Net Worth History Trend Card -->
+                    <div class="chart-card glass-panel" style="grid-column: 1 / -1; min-height: 380px;">
+                        <div class="card-header card-header-inline" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+                            <div>
+                                <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 0.25rem 0;">Net Worth History</h3>
+                                <span class="text-muted text-sm">Historical trend of wealth accumulation</span>
+                            </div>
+                            <div class="trend-timeframe-container">
+                                <select id="trend-timeframe" class="form-select" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.2); color: var(--text-primary); cursor: pointer; outline: none;">
+                                    <option value="6">Last 6 Months</option>
+                                    <option value="12" selected>Last 12 Months</option>
+                                    <option value="all">All Time</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="flex-grow: 1; min-height: 270px; position: relative;">
+                            <canvas id="netWorthTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card glass-panel card-lg">
+                        <div class="card-header">
+                            <h3>Net Worth Composition</h3>
+                            <span class="text-muted text-sm">Comparison of assets and liabilities</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="netWorthChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card glass-panel card-sm">
+                        <div class="card-header">
+                            <h3>Asset Allocation</h3>
+                            <span class="text-muted text-sm">Distribution of wealth</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="netWorthAllocationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Layout -->
+                <div class="networth-layout">
+                    <!-- Left Column: Forms -->
+                    <div class="networth-forms-col">
+                        <!-- Real Estate (House) Form -->
+                        <div class="glass-panel side-panel" style="position: static; margin-bottom: 1.5rem;">
+                            <div class="card-header border-bottom">
+                                <h3>Add / Edit Property</h3>
+                                <p class="text-muted text-sm">Add real estate properties to calculate their equity.</p>
+                            </div>
+                            <form id="form-property" class="mt-4" style="margin-top: 1rem;">
+                                <input type="hidden" id="property-edit-id" value="">
+                                <div class="form-group">
+                                    <label class="form-label" for="property-name">Property Name / Location</label>
+                                    <input type="text" id="property-name" class="form-control" list="existing-properties" placeholder="e.g. Primary Residence, Beach House" required>
+                                    <datalist id="existing-properties"></datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="property-value">Market Value ($)</label>
+                                    <input type="number" id="property-value" class="form-control" placeholder="e.g. 450000" min="0" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="property-mortgage">Remaining Mortgage ($)</label>
+                                    <input type="number" id="property-mortgage" class="form-control" placeholder="e.g. 300000 (0 if paid off)" min="0" step="0.01" required>
+                                </div>
+                                <div class="action-buttons-group pt-2" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                                    <button type="button" class="btn btn-secondary hidden" id="btn-cancel-property-edit">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" id="btn-save-property">
+                                        <i data-lucide="plus-circle" id="property-submit-icon"></i>
+                                        <span id="property-submit-text">Add Property</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Financial Account Form -->
+                        <div class="glass-panel side-panel" style="position: static;">
+                            <div class="card-header border-bottom">
+                                <h3>Add / Edit Financial Account</h3>
+                                <p class="text-muted text-sm">Add your cash, checking, savings, investment accounts, credit cards, or loans.</p>
+                            </div>
+                            <form id="form-account" class="mt-4" style="margin-top: 1rem;">
+                                <input type="hidden" id="account-edit-id" value="">
+                                <div class="form-group">
+                                    <label class="form-label" for="account-name">Account Name</label>
+                                    <input type="text" id="account-name" class="form-control" placeholder="e.g. Ally Checking, Vanguard IRA" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="account-type">Account Type</label>
+                                    <select id="account-type" class="form-select" required>
+                                        <option value="cash">Cash (Checking, Savings, Cash Equivalents)</option>
+                                        <option value="investment">Investments (Brokerage, Taxable Portfolio)</option>
+                                        <option value="retirement">Retirement (401k, IRA, Roth, Pension)</option>
+                                        <option value="hsa">Health Savings Account (HSA)</option>
+                                        <option value="liability">Liability (Credit Cards, Loans, Debt)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="account-value">Current Balance ($)</label>
+                                    <input type="number" id="account-value" class="form-control" placeholder="e.g. 5000" min="0" step="0.01" required>
+                                </div>
+                                <div class="action-buttons-group pt-2" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                                    <button type="button" class="btn btn-secondary hidden" id="btn-cancel-account-edit">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" id="btn-save-account">
+                                        <i data-lucide="plus-circle" id="account-submit-icon"></i>
+                                        <span id="account-submit-text">Add Account</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Lists -->
+                    <div class="networth-lists-col" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <!-- Properties List -->
+                        <div class="glass-panel">
+                            <div class="card-header border-bottom">
+                                <h3>Real Estate Portfolio</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Property</th>
+                                            <th>Market Value</th>
+                                            <th>Mortgage Debt</th>
+                                            <th>Equity</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="properties-tbody">
+                                        <!-- Dynamically generated rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="empty-state py-4 hidden" id="properties-empty-state">
+                                <i data-lucide="home" class="empty-icon text-muted" style="width: 24px; height: 24px;"></i>
+                                <p class="text-muted text-sm">No real estate properties added yet.</p>
+                            </div>
+                        </div>
+
+                        <!-- Financial Accounts List -->
+                        <div class="glass-panel">
+                            <div class="card-header border-bottom">
+                                <h3>Financial Accounts</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Account Name</th>
+                                            <th>Type</th>
+                                            <th>Balance</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accounts-tbody">
+                                        <!-- Dynamically generated rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="empty-state py-4 hidden" id="accounts-empty-state">
+                                <i data-lucide="wallet" class="empty-icon text-muted" style="width: 24px; height: 24px;"></i>
+                                <p class="text-muted text-sm">No financial accounts added yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Manual Add/Edit Transaction Modal -->
+    <div class="modal-backdrop hidden" id="transaction-modal">
+        <div class="modal-card glass-panel">
+            <div class="modal-header border-bottom">
+                <h3 id="transaction-modal-title">Add Transaction</h3>
+                <button class="modal-close-btn" id="btn-close-transaction-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="form-transaction" class="modal-body">
+                <input type="hidden" id="tx-edit-id" value="">
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-date">Transaction Date</label>
+                    <input type="date" id="tx-date" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-desc">Merchant Description / Description</label>
+                    <input type="text" id="tx-desc" class="form-control" placeholder="e.g. Whole Foods, Amazon, Rent" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-user">User / Cardholder</label>
+                    <select id="tx-user" class="form-select">
+                        <option value="">— Unassigned —</option>
+                        <option value="Gasper">Gasper</option>
+                        <option value="Burris">Burris</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-purchase-type">Purchase Scope</label>
+                    <select id="tx-purchase-type" class="form-select">
+                        <option value="single">Single (Applies only to cardholder)</option>
+                        <option value="group">Group / Shared (Applies to everyone)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-amount">Amount ($)</label>
+                    <input type="number" id="tx-amount" class="form-control" step="0.01" placeholder="e.g. 45.50 or -1000 for income" required>
+                    <span class="form-help text-xs text-muted">Use positive values for spending (expenses), and negative values for credits (income).</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tx-category">Category</label>
+                    <select id="tx-category" class="form-select" required>
+                        <!-- Populated dynamically via JS -->
+                    </select>
+                </div>
+
+                <div class="modal-footer border-top pt-3 mt-4">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-transaction-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="check"></i> Save Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Initialization Script -->
+    <script src="app.js"></script>
+</body>
+</html>
