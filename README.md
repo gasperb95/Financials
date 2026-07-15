@@ -10,7 +10,7 @@ A local-first, privacy-respecting financial manager and budget planner. **B² Fi
 - 📄 **Client-Side PDF & CSV Parser**: Parses bank and credit card statements. Reconstructs text lines vertically from PDF layout coordinates (powered by PDF.js) and applies heuristics to extract transactions automatically.
 - 🏷️ **Auto-Categorization Rules**: Define rules matching keywords (e.g., `uber` ➔ `Transport & Travel`, `amazon` ➔ `Shopping`) to automatically categorize transactions on upload.
 - 📊 **Dynamic Dashboard**: Interactive charts (powered by Chart.js) visualizing income, expense breakdowns, and category-specific budget progress.
-- 👥 **User Scoping & Purchase Division**: Track transactions by specific users (e.g. "Gasper") and split them into "Single" vs. shared "Group" purchases.
+- 👥 **User Scoping & Purchase Division**: Track transactions by specific users (e.g. "User") and split them into "Single" vs. shared "Group" purchases.
 - 💼 **Net Worth & Asset Tracker**: Monitor your net worth over time. Tracks liquid cash accounts, investments, properties, and mortgages month-by-month.
 - 🎨 **Modern Glassmorphic UI**: Beautiful dark-mode design (with a toggleable light mode) using curated colors, modern typography (Outfit & Plus Jakarta Sans), and responsive sidebar navigation.
 

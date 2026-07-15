@@ -171,9 +171,26 @@ function initDatabase() {
                     if (!err && row.count === 0) {
                         console.log('Seeding default users...');
                         const stmt = db.prepare(`INSERT INTO users (id, name, color, keywords) VALUES (?, ?, ?, ?)`);
-                        stmt.run('user-gasper', 'Gasper', '#60a5fa', 'gasper,brandon,primary,g');
-                        stmt.run('user-burris', 'Burris', '#c084fc', 'burris,sarah,secondary,b');
+                        stmt.run('user-default', 'User', '#60a5fa', 'user,primary,u');
                         stmt.finalize();
+                    } else {
+                        // Check if Gasper or Burris are in the database, and migrate them to User
+                        db.all(`SELECT * FROM users`, (err, rows) => {
+                            if (!err && rows) {
+                                const hasOldUsers = rows.some(u => u.name === 'Gasper' || u.name === 'Burris' || u.id === 'user-gasper' || u.id === 'user-burris');
+                                if (hasOldUsers) {
+                                    console.log('Migrating Gasper and Burris users to default User...');
+                                    db.serialize(() => {
+                                        // Delete Gasper and Burris users
+                                        db.run(`DELETE FROM users WHERE id IN ('user-gasper', 'user-burris') OR name IN ('Gasper', 'Burris')`);
+                                        // Insert default User if not already exists
+                                        db.run(`INSERT OR IGNORE INTO users (id, name, color, keywords) VALUES ('user-default', 'User', '#60a5fa', 'user,primary,u')`);
+                                        // Update transactions where user was 'Gasper' or 'Burris' to 'User'
+                                        db.run(`UPDATE transactions SET user = 'User' WHERE user IN ('Gasper', 'Burris')`);
+                                    });
+                                }
+                            }
+                        });
                     }
                 });
             });

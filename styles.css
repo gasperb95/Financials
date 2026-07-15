@@ -1224,26 +1224,15 @@ body {
     transform: translateY(0);
 }
 
-.badge-gasper {
+.badge-user {
     background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
     border: 1px solid rgba(59, 130, 246, 0.3);
 }
-.light-theme .badge-gasper {
+.light-theme .badge-user {
     background: rgba(37, 99, 235, 0.1);
     color: #1d4ed8;
     border: 1px solid rgba(37, 99, 235, 0.2);
-}
-
-.badge-burris {
-    background: rgba(168, 85, 247, 0.15);
-    color: #c084fc;
-    border: 1px solid rgba(168, 85, 247, 0.3);
-}
-.light-theme .badge-burris {
-    background: rgba(124, 58, 237, 0.1);
-    color: #6d28d9;
-    border: 1px solid rgba(124, 58, 237, 0.2);
 }
 
 .badge-unassigned {
