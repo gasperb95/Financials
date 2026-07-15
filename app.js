@@ -16,12 +16,11 @@ let state = {
 };
 
 // Dashboard User Toggle State
-let dashboardUserFilter = 'all'; // 'all' or lowercase user name (e.g. 'gasper')
+let dashboardUserFilter = 'all'; // 'all' or lowercase user name (e.g. 'user')
 
 // Default Configuration Constants
 const DEFAULT_USERS = [
-    { id: 'user-gasper', name: 'Gasper', color: '#60a5fa', keywords: 'gasper,brandon,primary,g' },
-    { id: 'user-burris', name: 'Burris', color: '#c084fc', keywords: 'burris,sarah,secondary,b' }
+    { id: 'user-default', name: 'User', color: '#60a5fa', keywords: 'user,primary,u' }
 ];
 
 const DEFAULT_CATEGORIES = [
